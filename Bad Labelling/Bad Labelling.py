@@ -1,0 +1,615 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "308b383e-a0dc-4058-ad75-f73c11fd8117",
+   "metadata": {},
+   "source": [
+    "<h2 align=center>Bad Labelling Experiment</h2>\n",
+    "\n",
+    "In this notebook, we will be conducting an experiment which aims at capturing the keywords which were wrongly labelled in our input dataset. This process is crucial as it helps us in gaining more useful insights of the data points that we will be using to train our classifier but also find any similar trend that may occur in our input keywords. \n",
+    "\n",
+    "The github repository of the author was used to follow this experiment which can be found on the link [here](https://github.com/koaning/doubtlab/blob/main/docs/examples/google-emotions.md)."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "62c124d0-30bc-4048-a40e-547a21f42210",
+   "metadata": {},
+   "source": [
+    "This project/notebook consists of several Tasks.\n",
+    "\n",
+    "- **[Task 1]()**: Installing all dependencies for our DoubtLab library. \n",
+    "- **[Task 2]()**: Importing the required libraries in the environment.\n",
+    "- **[Task 3]()**: Importing the dataset which was manually labelled or the final results of the classification task.\n",
+    "- **[Task 4]()**: Data Analysis and Pre-processing of keywords by one-hot-encoding.\n",
+    "- **[Task 5]()**: Assign the label to investigate and pass it through a Logistic Regression and ByptePair Embeddings pipeline.\n",
+    "- **[Task 6]()**: Assign the doubts from the github page of the author.\n",
+    "- **[Task 7]()**: Investigate each reasons individually and extract keywords which do not match with their assigned label names.\n",
+    "- **[Task 8]()**: Evalute the keywords and store the subset dataset for a label in a pickel for future use. "
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "eea74be3-7c49-47d5-a77b-bcc7ec99ed05",
+   "metadata": {},
+   "source": [
+    "### Task 1: Installing all the Dependencies for our DoubtLab Library\n",
+    "Firstly, installing all of the dependent libraries for using the DoubtLab. You will need to run the following cells when using the notebook for the first time to have these libraries in this notebook environment."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "b6437f0a-b36d-4fb5-9eae-44dd4307a335",
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "#pip install doubtlab"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "86319e81-2d13-45b8-a634-9d1f48b311ba",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#pip install --upgrade pip"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "e3346c7a-19d8-41c3-9dc5-2297399bbdce",
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "#!pip install whatlies"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "6dd1307a-7633-455b-8331-439c8e9dc356",
+   "metadata": {},
+   "source": [
+    "### Task 2: Importing the required libraries in the environment."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 37,
+   "id": "5706f91d-44c8-4a40-b44d-2c5d40ffee13",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "        <script type=\"text/javascript\">\n",
+       "        window.PlotlyConfig = {MathJaxConfig: 'local'};\n",
+       "        if (window.MathJax) {MathJax.Hub.Config({SVG: {font: \"STIX-Web\"}});}\n",
+       "        if (typeof require !== 'undefined') {\n",
+       "        require.undef(\"plotly\");\n",
+       "        requirejs.config({\n",
+       "            paths: {\n",
+       "                'plotly': ['https://cdn.plot.ly/plotly-latest.min']\n",
+       "            }\n",
+       "        });\n",
+       "        require(['plotly'], function(Plotly) {\n",
+       "            window._Plotly = Plotly;\n",
+       "        });\n",
+       "        }\n",
+       "        </script>\n",
+       "        "
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "# Data Analysia and Pre-processing\n",
+    "import pandas as pd \n",
+    "from sklearn.preprocessing import OneHotEncoder\n",
+    "\n",
+    "# Training the keywords\n",
+    "from sklearn.pipeline import make_pipeline \n",
+    "from sklearn.linear_model import LogisticRegression\n",
+    "from sklearn.feature_extraction.text import CountVectorizer \n",
+    "\n",
+    "#Assigning the doubt reasons\n",
+    "from doubtlab.ensemble import DoubtEnsemble\n",
+    "from doubtlab.reason import ProbaReason, DisagreeReason, ShortConfidenceReason\n",
+    "\n",
+    "# Visualizing data values\n",
+    "import plotly as py\n",
+    "import plotly.graph_objs as go\n",
+    "import ipywidgets as widgets\n",
+    "from scipy import special\n",
+    "import plotly.express as px\n",
+    "\n",
+    "py.offline.init_notebook_mode(connected = True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "566fa714-f007-471b-8a7c-96ea9710552a",
+   "metadata": {
+    "tags": []
+   },
+   "source": [
+    "### Task 3: Importing the dataset \n",
+    "In this notebook, the dataset that we will be using is of df.xlsx a name given to replicate the dataset used."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "ead9054d-0c0f-4d14-9f3f-425e2acfbeb7",
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "df = pd.read_excel(\"df.xlsx\", sheet_name = 'df1')\n",
+    "df = df.rename({'Segment 1': 'Topic'}, axis = 1)\n",
+    "df = df[['Keyword','Topic']]\n",
+    "df.head(20)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "95d25cdb-e7e8-4897-a713-e0b53b2554d9",
+   "metadata": {},
+   "source": [
+    "### Task 4: Data Analysis and Pre-processing of keywords by one-hot-encoding."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "dc7ab93e-f52d-4f69-a2db-b65d4798228c",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df.info()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "a4411018-94b9-451a-9335-b233f3882efa",
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "fig = px.histogram(df,x='Topic')\n",
+    "fig.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "fb9555b9-b57a-4c2b-b7f5-26bd74f76371",
+   "metadata": {},
+   "source": [
+    "From the above histogram generated, we can see that the most populated labels are the `a` and `b`. While the labels with the least keywords are the `topic name ` and `topic name 1`. For this we will be investigating the `topic name` labels as these sets of labels seem quite close enough and may have same type of keywords present in them. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "77b8c9f3-37b4-4f40-9f23-d8e254230f26",
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "rated_dummies = pd.get_dummies(df['Topic'])\n",
+    "df = pd.concat([df, rated_dummies], axis=1)\n",
+    "df.pop('Topic')\n",
+    "df"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "102b5dee-8500-46f3-b8c6-78f9ddba4968",
+   "metadata": {},
+   "source": [
+    "### Task 5: Assign the label to investigate and pass it through a Logistic Regression and ByptePair Embeddings pipeline.\n",
+    "\n",
+    "Firstly, we will be passing all of the keywords from our input dataset and only extracting the ones which are labelled as `topic name` and marking them to 1 to differentiate them from other label names. And this dataset will be fit to the Logistic Regression by using Count Vectorizer technique and to compare it off, we will be passing it through Logistic Regression again but this time by using the BytePair embeddings since we are dealing with textual data values.\n",
+    "\n",
+    "For this experiment, we will be using the values of hyperparameters which are used by the author to investigate bad labelling on google-emotions dataset."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "6472fd60-a967-4732-9890-c3e7b6897052",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Topic to investigate labelling for\n",
+    "label_of_interest = 'topic name'\n",
+    "(df[['Keyword', label_of_interest]]\n",
+    "  .loc[lambda d: d[label_of_interest] == 1]\n",
+    "  .sample(4))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "6b17b7b6-548b-4bd0-8fcb-ea955d3c546b",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "X, y = list(df['Keyword']) , df[label_of_interest]\n",
+    "print(f'Number of keywords: {len(X)}, Number of Labels: {len(y)}')\n",
+    "\n",
+    "pipe = make_pipeline(\n",
+    "    CountVectorizer(),\n",
+    "    LogisticRegression(class_weight = 'balanced', max_iter = 1000))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "21bad085-5c43-45e7-ad13-26698d778da7",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from sklearn.pipeline import make_union\n",
+    "from whatlies.language import BytePairLanguage\n",
+    "\n",
+    "pipe_emb = make_pipeline(\n",
+    "    make_union(\n",
+    "        BytePairLanguage(\"en\", vs=1_000),\n",
+    "        BytePairLanguage(\"en\", vs=100_000)\n",
+    "    ),\n",
+    "    LogisticRegression(class_weight='balanced', max_iter=1000)\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "727019b5-7134-4c9b-a2d7-16dace97e57c",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Training both pipelines \n",
+    "pipe.fit(X,y)\n",
+    "pipe_emb.fit(X,y)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "b0f1bc7e-f8cd-4afb-becd-5975ecad3fd5",
+   "metadata": {},
+   "source": [
+    "### Task 6: Assign the doubts from the github page of the author.\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "90e27773-ebef-428f-9781-52a4cae3f4bf",
+   "metadata": {},
+   "source": [
+    "Doubts are specified reasons the technique performes internally to check wheather the labels match or not. \n",
+    "\n",
+    "Following are the specified reasons the technique performs: \n",
+    "1. `proba`: Assigns doubt when the `pipe` pipeline doesn't predict any label with a high confidence.\n",
+    "2. `disagree`: Assigns doubt when the `pipe` pipeline doesn't agree with their `pipe_emb` pipeline. So, when they do not match. \n",
+    "3. `short_pipe`: Assigns doubt when `pipe` pipeline predicts correct labels with a low confidence. \n",
+    "4. `short_pipe_emb`: Assigns doubt when the `pipe_emb` predicts the correct label with a low confidence."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "4a511190-d4d4-42dc-8cf8-cc867d273324",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "reasons = {\n",
+    "    'proba': ProbaReason(pipe),\n",
+    "    'disagree': DisagreeReason(pipe, pipe_emb),\n",
+    "    'short_pipe': ShortConfidenceReason(pipe),\n",
+    "    'short_pipe_emb': ShortConfidenceReason(pipe_emb),\n",
+    "}\n",
+    "\n",
+    "doubt = DoubtEnsemble(**reasons)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "726b517e-f638-463e-8c77-ab7b076d09bf",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Return a dataframe with reasoning behind sorting\n",
+    "predicates = doubt.get_predicates(X, y)\n",
+    "\n",
+    "# Use predicates to sort original dataframe\n",
+    "df_sorted = df.iloc[predicates.index][['Keyword',label_of_interest]]\n",
+    "\n",
+    "# Create a dataframe containing predicates and original data\n",
+    "df_label = pd.concat([df_sorted, predicates], axis=1)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "53fbcdd4-55b3-4624-b7a8-b26b5353c5e3",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "(df_label[['Keyword', label_of_interest]]\n",
+    "  .head(20))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f3bb0c5e-2012-454a-a622-c8eb144bdf86",
+   "metadata": {},
+   "source": [
+    "Below, we can see the keywords which were labelled as `topic name` in the input dataset."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "0c45be0f-9eff-416c-af73-da0e78999262",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "labeledas_topicname = (df_label[['Keyword', label_of_interest]]\n",
+    "  .loc[lambda d: d['topic name'] == 1])\n",
+    "labeledas_topicname.sample(20)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "4242cfde-1129-4f8a-9294-b86ac3731951",
+   "metadata": {},
+   "source": [
+    "From the above results, we can convey that there are all of the keywords are related to some type of topic name activity. This shows us that the topic name keywords are somewhat correctly labelled."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "eed658d6-1c02-4eaa-8c4a-e685a4aea112",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "labeledas_topicname[labeledas_topicname['Keyword'].str.contains(\"substring1\" or \"substring2\")]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "687b506a-1653-4374-ae22-8ec953694124",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "(df_label\n",
+    " .sort_values(\"predicate_disagree\", ascending=False)\n",
+    " .head(20)[['Keyword', label_of_interest]]\n",
+    " .drop_duplicates())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "5c986aaf-0247-4e61-9da8-0efabbc0c927",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df[df['Keyword'] == 'keyword']"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "81ed06cc-1c6d-4044-8693-c4f8da0e80d5",
+   "metadata": {},
+   "source": [
+    "### Task 7: Investigate each reasons individually and extract keywords which do not match with their assigned label names."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e6348230-4c71-48b8-a153-4258e26d251e",
+   "metadata": {},
+   "source": [
+    "### CountVectorizer shot on Confidence\n",
+    "The following dataset contains all the keywords which should have been labeled as topic `topic name` with a high confidence but were not. This is taken out from the countvectorizer technique which transfers strings into vectors. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "696e42b5-7e98-414a-b395-ace0b70dc7b1",
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "(df_label\n",
+    " .sort_values(\"predicate_short_pipe\", ascending=False)\n",
+    " .head(20)[['Keyword', label_of_interest]]\n",
+    " .drop_duplicates())"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "537b044b-a307-439c-a713-45bf34640e16",
+   "metadata": {
+    "tags": []
+   },
+   "source": [
+    "By looking at the resultant keywords from the count vectorizer technique, we can find keywords which contain the sub-string `substring1 or substring2` but aren't labelled as topic name label. These set of keywords are interesting as it shows explicitly these keywords needs some extra attention as to understand what label they were assigned to. For this, we will take some keywords and find what labels they were assigned to."
+   ]
+  },
+  {
+   "cell_type": "raw",
+   "id": "3bb4ad4e-e1a3-4d56-a9a7-354dde1a4b41",
+   "metadata": {},
+   "source": [
+    "df[df['Keyword'].isin(['keyword1','keyword2','keyword3'])]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "be537c5e-5958-489b-8116-8e7fa9844486",
+   "metadata": {},
+   "source": [
+    "1. From the above subset, we can capture a trend that states if there are two possible label names in a keyword then, that keywords can be assigned to any one of the label. Therefore, if these keywords as assigned to either one of the label then we can lay trust of these label assignment. \n",
+    "2. But it's vital to notice that there are some keywords which do not follow the above trend, for example, the keywords that explicitly contain a different label name in it. These type of keywords could be the one that would be transferred after also consulting with the SEO specialists.\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "1c4bf5be-c2fd-4767-b7ec-246a932e024b",
+   "metadata": {},
+   "source": [
+    "### CountVectorizer with Low Proba\n",
+    "For this reason, we get the list of keywords for which the technique was not confident in capturing the assignment. This could be due to multiple labels being present in the keyword or a totally new type of keyword which doesn't include any label name. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "d0c0299a-a3c9-43b5-af1a-886a741d619d",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "(df_label\n",
+    " .sort_values(\"predicate_proba\", ascending=False)\n",
+    " .head(10)[['Keyword', label_of_interest]]\n",
+    " .drop_duplicates())"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "d176fbc9-c3f7-40c2-b07d-c4bbc76d1c20",
+   "metadata": {},
+   "source": [
+    "By looking at the top 10 keywords for this list, we can find keywords which contain double label names mostly relating to topic name and topic name. These results can be combined with the above results to look at them together."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "3ba89070-2d3b-4f1e-ac0b-a45c113ec958",
+   "metadata": {},
+   "source": [
+    "### BytePair Embeddings short on Confidence\n",
+    "This reasoning is based on word embeddings. These embeddings are pooled together before passed to the classifier.\n",
+    "BytePair Encodings are word embeddings that are precomputed on the sub-word level. This means they are able to embed any word by splitting words into subwords and looking up their embeddings. For example: unfortunately into un and fortunately. Whereby into where and by and so on..."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "aa72093e-b792-4008-93ad-03da568232b4",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "topicname_byte_re = (df_label\n",
+    " .sort_values(\"predicate_short_pipe_emb\", ascending=False)\n",
+    " .sample(10)[['Keyword', label_of_interest]]\n",
+    " .drop_duplicates())\n",
+    "topicname_byte_re"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "a884e1e6-9227-44db-95b8-b6cb15645704",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df[df['Keyword'].isin(['Keyword1','Keyword2','Keyword3'])]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "fc0bb9d6-6bdf-4f1c-ac36-8b4297c16d4d",
+   "metadata": {},
+   "source": [
+    "1. From the above results from the embeddings, we can conclude that the keywords in this list seem to have a different trend. By using the embeddings, we get some objects that can be used to topic name something such as the 'keyword1' is a topic name which is correctly labelled but it quite possibly can be used for topic name. \n",
+    "\n",
+    "2. Secondly, keywords contain sub string `substring` have also been captured in here, which is also interesting to look as as how find a correlation between our topic name and topic name labels. \n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "d27d746a-7f5b-4b12-acc5-fd406ccbbb39",
+   "metadata": {},
+   "source": [
+    "### Task 8: Evalute the keywords and store the subset dataset for a label in a pickel for future use. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "cb16f0bb-6293-4a0d-ac21-f1170e2b73fa",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "topicname_byte_re.to_pickle('topicname_bad_labelling')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e5c4bcdd-e533-402d-8484-23540eb41d89",
+   "metadata": {},
+   "source": [
+    "### Conclusions: \n",
+    "From the above experiment we found out some interesting trends and insights for our label `topic name`. While there were some keywords which contained keywords aiming towards performing a specific task with a much better way, there were some substrings and objects that could also be referred to topic name. Both of the results cpatured by the count vectorization and the embeddings were useful and should be clubbed and discussed together with the SEO specialist for planning the next steps for these. \n",
+    "\n",
+    "A similar group of steps were performed for comparing it to the `topic name` label and for other labels in our datasets as well. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "73da509e-40f3-42b8-ab1e-75f6f70f4261",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "environment": {
+   "name": "common-cpu.m80",
+   "type": "gcloud",
+   "uri": "gcr.io/deeplearning-platform-release/base-cpu:m80"
+  },
+  "kernelspec": {
+   "display_name": "Python [conda env:root] *",
+   "language": "python",
+   "name": "conda-root-py"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.7.10"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
