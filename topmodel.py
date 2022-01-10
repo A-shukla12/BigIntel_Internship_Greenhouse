@@ -35,18 +35,18 @@ def app():
             global column
             column = st.sidebar.text_input(label='Choose the column name to perform analysis on:')
 
-            if 'topic_selection'  in column:
-                df['topic_selection'] = df.topic_selection.apply(lambda x: literal_eval(str(x)))
-                df = df['topic_selection']
+            if 'col1'  in column:
+                df['col1'] = df.topic_selection.apply(lambda x: literal_eval(str(x)))
+                df = df['col1']
                 # df2.loc[0] = np.array(['français'])
-                df = df.explode('topic_selection')
+                df = df.explode('col1')
                 df = pd.DataFrame(df)
 
-            if 'topics' in column:
-                df['topics'] = df.topics.apply(lambda x: literal_eval(str(x)))
-                df = df['topics']
+            if 'col2' in column:
+                df['col2'] = df.topics.apply(lambda x: literal_eval(str(x)))
+                df = df['col2']
                 # df2.loc[0] = np.array(['français'])
-                df = df.explode('topics')
+                df = df.explode('col2')
                 df = pd.DataFrame(df)
 
 
@@ -55,18 +55,18 @@ def app():
                 st.write(analysis.b2b_analysis(df, column))
         if task_chosen == 'Modelling and Results':
 
-            if 'topic_selection' in column:
-                df['topic_selection'] = df.topic_selection.apply(lambda x: literal_eval(str(x)))
-                df = df['topic_selection']
+             if 'col1'  in column:
+                df['col1'] = df.topic_selection.apply(lambda x: literal_eval(str(x)))
+                df = df['col1']
                 # df2.loc[0] = np.array(['français'])
-                df = df.explode('topic_selection')
+                df = df.explode('col1')
                 df = pd.DataFrame(df)
 
-            if 'topics' in column:
-                df['topics'] = df.topics.apply(lambda x: literal_eval(str(x)))
-                df = df['topics']
+            if 'col2' in column:
+                df['col2'] = df.topics.apply(lambda x: literal_eval(str(x)))
+                df = df['col2']
                 # df2.loc[0] = np.array(['français'])
-                df = df.explode('topics')
+                df = df.explode('col2')
                 df = pd.DataFrame(df)
 
             df = df.rename_axis('Index').reset_index()
